@@ -1,6 +1,8 @@
 import json
 import re
 import collections
+import os.path
+import pickle
 from pprint import pprint
 from nltk.corpus import stopwords
 import nltk
@@ -9,7 +11,7 @@ import nltk
 
 class RecipeSearchEngine:
     """
-
+    Recipe search engine
     """
     # search weight values per section for 'normal' search
     title_value = 8
@@ -34,8 +36,17 @@ class RecipeSearchEngine:
         with open(file_name+'.json') as f:
             self.recipes = json.load(f)
 
-        # builds the inverted index dictionary
-        self.build_inverted_index(self.recipes)
+        if os.path.isfile('inverted_index.pickle'):
+            # Load inverted index if exists
+            with open('inverted_index.pickle', 'rb') as handle:
+                self.inverted_index_dict = pickle.load(handle)
+
+        else:
+            # builds the inverted index dictionary
+            self.build_inverted_index(self.recipes)
+            # Store inverted index
+            with open('inverted_index.pickle', 'wb') as handle:
+                pickle.dump(self.inverted_index_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def print_recipe(self, recipe_index, details=True):
         """
@@ -81,6 +92,9 @@ class RecipeSearchEngine:
 
     def title_dictionary(self, idx, recipe):
         """
+        Builds inverted dictionary for title section
+        :param idx: document index
+        :param recipe: input containing recipe data
         :return:
         """
         # check if document has a title, else ignore it
@@ -194,7 +208,6 @@ class RecipeSearchEngine:
 
             # ignore None values
             if self.recipes[idx]['calories'] and self.recipes[idx]['protein'] and self.recipes[idx]['fat']:
-
                 for n in range(1, 100):
                     healthiness = (abs(self.recipes[idx]['calories'] - (510 * n)) / 510 +
                                    2 * abs(self.recipes[idx]['protein'] - (18 * n)) / 18 +
@@ -223,9 +236,13 @@ class RecipeSearchEngine:
 
         return top_results
 
-    def search(self, query, ordering='normal'):
+    def search(self, query, ordering='normal', details=False):
         """
         Search function: able to search given 1 out of 3 possible search options: normal, simple and healthy.
+        :param query: input query search
+        :param ordering: Normal, Simple or Healthy
+        :param details: False prints recipe title and index only, True prints the whole document
+        :return:
         """
         top_results = []
         stop_words = stopwords.words('english')
@@ -246,14 +263,15 @@ class RecipeSearchEngine:
 
         print(f'{ordering.title()} results for {query} are:\n')
         for result in top_results:
-            self.print_recipe(result[0], details=False)
+            self.print_recipe(result[0], details=details)
         print('~~~*~~~'*15)
 
 
 engine = RecipeSearchEngine('recipes')
 
-engine.search('Fish and Chips', ordering='normal')
-engine.search('Banana cheese pie', ordering='simple')
-engine.search('apple pie', ordering='simple')
-engine.search('apple pie', ordering='healthy')
-engine.search('apple pie rum banana honey shit', ordering='healthy')
+engine.search('Fish and Chips', ordering='normal', details=False)
+engine.search('Banana cheese', ordering='normal', details=False)
+engine.search('Banana cheese pie', ordering='simple', details=False)
+engine.search('Apple pie', ordering='simple', details=False)
+engine.search('Apple Pie Honey', ordering='healthy', details=False)
+
